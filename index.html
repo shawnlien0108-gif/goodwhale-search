@@ -87,6 +87,7 @@ select{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1p
 .segs li:first-child{border-top:0}
 .segs li.sub{padding-left:22px}
 .segs .st{font-weight:500}
+.subs{margin:6px 0 0;padding-left:20px;font-size:14px}.subs li{padding:2px 0;border:0}
 .segs .ss{color:var(--muted);font-size:14px;margin-top:2px}
 .kind{display:inline-block;font-size:11.5px;padding:1px 7px;border-radius:5px;margin-right:6px;border:1px solid currentColor;vertical-align:1px}
 .kind.長精華{color:var(--long)} .kind.短精華{color:var(--short)} .kind.精精華{color:var(--hook)} .kind.一般{color:var(--muted)}
@@ -166,27 +167,45 @@ function expand(term) {
     if (list.some(a => a === t || (t.length >= 2 && a.includes(t)) || (a.length >= 2 && t.includes(a) && a.length >= t.length - 1))) set.add(name);
   return set;
 }
+function scoreTerm(v, raw, names) {
+  const r = raw.toLowerCase(); let s = 0; const hits = [];
+  if (v.title.toLowerCase().includes(r)) s += 8;
+  if (v.summary.toLowerCase().includes(r)) s += 2;
+  for (const g of v.segs) {
+    let gs = 0;
+    if (g.kw.some(k => names.has(k))) gs += 6;
+    if (g.tp.some(k => names.has(k) || k.includes(raw))) gs += 4;
+    if (g.t.toLowerCase().includes(r)) gs += 4;
+    if (g.s.toLowerCase().includes(r)) gs += 1.5;
+    if (gs) { s += gs * W[g.k]; hits.push(g.t); }
+  }
+  return { s, hits };
+}
+// 把「AI泡沫」這種沒空格的詞拆成 AI、泡沫；中文長詞再拆成兩字一組
+function tokenize(raw) {
+  const out = [];
+  for (const m of raw.match(/[A-Za-z0-9.&+-]+|[^A-Za-z0-9.&+\-\s]+/g) || []) {
+    if (/^[A-Za-z0-9.&+-]+$/.test(m) || m.length <= 2) out.push(m);
+    else for (let i = 0; i < m.length - 1; i++) out.push(m.slice(i, i + 2));
+  }
+  return [...new Set(out)];
+}
 function scoreVideo(v, terms) {
   let total = 0; const hits = new Set();
-  for (const { raw, names } of terms) {
-    const r = raw.toLowerCase(); let s = 0;
-    if (v.title.toLowerCase().includes(r)) s += 8;
-    if (v.summary.toLowerCase().includes(r)) s += 2;
-    for (const g of v.segs) {
-      const w = W[g.k]; let gs = 0;
-      if (g.kw.some(k => names.has(k))) gs += 6;
-      if (g.tp.some(k => names.has(k) || k.includes(raw))) gs += 4;
-      if (g.t.toLowerCase().includes(r)) gs += 4;
-      if (g.s.toLowerCase().includes(r)) gs += 1.5;
-      if (gs) { s += gs * w; hits.add(g.t); }
+  for (const { raw, names, toks } of terms) {
+    let { s, hits: h } = scoreTerm(v, raw, names);
+    if (!s && toks.length > 1) {
+      let got = 0, sum = 0; const hh = [];
+      for (const t of toks) { const r = scoreTerm(v, t, expand(t)); if (r.s) { got++; sum += r.s; hh.push(...r.hits); } }
+      if (got >= Math.ceil(toks.length / 2)) { s = sum * (got / toks.length) ** 2 * 0.8; h = hh; }
     }
-    if (!s) return null;   // 每個詞都要命中
-    total += s;
+    if (!s) return null;
+    h.forEach(x => hits.add(x)); total += s;
   }
   return { v, score: total, hits: [...hits] };
 }
 function search(q) {
-  const terms = q.split(/\s+/).filter(Boolean).map(raw => ({ raw, names: expand(raw) }));
+  const terms = q.split(/\s+/).filter(Boolean).map(raw => ({ raw, names: expand(raw), toks: tokenize(raw) }));
   return D.videos.map(v => scoreVideo(v, terms)).filter(Boolean);
 }
 function themeScore(v, th) {
@@ -273,7 +292,7 @@ function related(v, n) {
     const shared = x.keywords.filter(k => mine.has(k));
     let s = shared.reduce((a, k) => a + IDF[k], 0) + 0.5 * x.topics.filter(k => myT.has(k)).reduce((a, k) => a + IDF[k], 0);
     shared.sort((a, b) => IDF[b] - IDF[a]);
-    return { x, s, why: shared.length ? "都有講到：" + shared.slice(0, 3).join("、") : "" };
+    return { x, s, why: shared.length ? "也有講到：" + shared.slice(0, 3).join("、") : "" };
   }).filter(r => r.s > 0).sort((a, b) => b.s - a.s).slice(0, n);
 }
 
@@ -283,7 +302,15 @@ function watch(id) {
   if (!v) { $("#app").innerHTML = `<div class="wrap empty">找不到這支影片。<a href="#/">回首頁</a></div>`; return; }
   const sib = D.videos.find(x => x.date === v.date && x.id !== v.id);
   const yt = `https://www.youtube.com/watch?v=${v.id}`;
-  const segs = v.segs.map(g => `<li class="${g.sub ? "sub" : ""}"><div class="st"><span class="kind ${g.k}">${g.k === "一般" ? "段落" : g.k}</span>${esc(g.t)}</div><div class="ss">${esc(g.s)}</div></li>`).join("");
+  // 只顯示精華：長精華改稱「重點精華」，底下列出它的短精華／精精華標題；一般段落不顯示
+  const blocks = []; let cur = null;
+  for (const g of v.segs) {
+    if (g.k === "長精華") { cur = { t: g.t, s: g.s, subs: [] }; blocks.push(cur); }
+    else if (g.k !== "一般" && g.sub && cur) cur.subs.push(g.t);
+    else if (g.k !== "一般") { blocks.push({ t: g.t, s: g.s, subs: [], plain: true }); }
+    if (!g.sub && g.k !== "長精華") cur = null;
+  }
+  const segs = blocks.map(b => `<li><div class="st">${b.plain ? "" : `<span class="kind 長精華">重點精華</span>`}${esc(b.t)}</div><div class="ss">${esc(b.s)}</div>${b.subs.length ? `<ul class="subs">${b.subs.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}</li>`).join("");
   const tags = v.topics.map(t => `<a class="tag" href="#/search?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join("")
     + v.keywords.slice(0, 18).map(t => `<a class="tag kw" href="#/search?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join("");
   const rel = related(v, 8);
@@ -293,7 +320,7 @@ function watch(id) {
     <h1>${esc(v.title)}</h1>
     <div class="meta">${fmtDate(v.date)}・${v.member ? "會員直播" : "公開直播"}${v.views != null ? "・" + fmtViews(v.views) : ""}・<a href="${yt}" target="_blank" rel="noopener">在 YouTube 開啟</a></div>
     ${sib ? `<div class="box"><h2>同一場直播的${sib.member ? "會員段" : "公開段"}</h2>${mini(sib)}</div>` : ""}
-    <div class="box"><h2>這集在講什麼</h2>${v.summary ? `<p style="margin:0 0 12px">${esc(v.summary)}</p>` : `<p class="note">這集還沒建立索引，目前只能用標題搜尋到。</p>`}
+    <div class="box"><h2>這集可以學到什麼</h2>${v.summary ? `<p style="margin:0 0 12px">${esc(v.summary)}</p>` : `<p class="note">這集還沒建立索引，目前只能用標題搜尋到。</p>`}
       ${segs ? `<ul class="segs">${segs}</ul>` : ""}</div>
     ${tags ? `<div class="box"><h2>標籤</h2>${tags}</div>` : ""}
   </div>
