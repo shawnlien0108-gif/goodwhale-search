@@ -109,6 +109,14 @@ footer{background:var(--brand);color:var(--brand-ink);margin-top:56px;padding:32
 .fine{margin-top:22px;font-size:12.5px;opacity:.6}
 .loading{padding:80px 0;text-align:center;color:var(--muted)}
 </style>
+<!-- Google Analytics 4：記錄網站使用情形（評估 ID 在下面兩處） -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XSLYCYYWWG"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag("js", new Date());
+gtag("config", "G-XSLYCYYWWG", { send_page_view: false });
+</script>
 </head>
 <body>
 <header id="top"><div class="wrap">
@@ -129,7 +137,7 @@ footer{background:var(--brand);color:var(--brand-ink);margin-top:56px;padding:32
       <a class="fbtn" href="https://www.instagram.com/adgarsay/" target="_blank" rel="noopener">◎ Adgar</a>
     </div></div>
   </div>
-  <div class="fine" id="updated">每週四晚上 8 點直播・本站內容僅供參考，不構成投資建議</div>
+  <div class="fine" id="updated">每週四晚上 8 點直播・本站內容僅供參考，不構成投資建議・本站使用 Google Analytics 統計瀏覽情形</div>
 </div></footer>
 
 <script>
@@ -140,6 +148,71 @@ const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt
 const thumb = id => `https://i.ytimg.com/vi/${id}/mqdefault.jpg`;
 const fmtViews = n => n == null ? "" : (n >= 10000 ? (n / 10000).toFixed(1) + " 萬" : n.toLocaleString()) + " 次觀看";
 const fmtDate = d => d.replaceAll("-", "/");
+
+/* ---------- 數據追蹤（GA4） ---------- */
+function track(name, params) { try { if (window.gtag) gtag("event", name, params || {}); } catch (e) {} }
+let curPage = "home", nextSource = "", lastSearch = null;
+function trackPage(type, path, title) {
+  curPage = type;
+  const base = location.origin + location.pathname.replace(/\/$/, "");
+  track("page_view", { page_location: base + path, page_title: title, page_type: type });
+}
+// 點擊追蹤：標籤、主軸、熱門關鍵字、影片卡片、行動呼籲按鈕
+document.addEventListener("click", e => {
+  const a = e.target.closest("a, button");
+  if (!a) return;
+  const href = a.getAttribute("href") || "";
+  if (a.classList.contains("tag")) track("tag_click", { tag_name: a.textContent.trim(), tag_type: a.classList.contains("kw") ? "關鍵字" : "主題標籤", page_type: curPage });
+  else if (a.classList.contains("chip")) track("tag_click", { tag_name: a.textContent.trim(), tag_type: "熱門關鍵字", page_type: curPage });
+  else if (href.includes("theme=")) { const id = new URLSearchParams(href.split("?")[1]).get("theme"); const th = D.themes.find(t => t.id === id); track("theme_click", { theme_name: th ? th.name : id }); }
+  if (href.startsWith("#/watch/")) {
+    const list = a.closest(".grid, aside, .box");
+    const items = list ? [...list.querySelectorAll('a[href^="#/watch/"]')] : [];
+    nextSource = a.closest("aside") ? "相關影片" : a.closest(".box") ? "同場另一段" : curPage === "search" ? "搜尋結果" : "首頁";
+    if (a.closest("aside")) track("related_click", { video_id: href.slice(8), position: items.indexOf(a) + 1 });
+  }
+  if (/^https?:/.test(href)) {
+    let cta = "其他外部連結";
+    if (href.includes("/join")) cta = "加入會員";
+    else if (href.includes("instagram.com/real.goodwhale")) cta = "IG 財鯨動向";
+    else if (href.includes("instagram.com/j.perfectionist")) cta = "IG JohnJohn";
+    else if (href.includes("instagram.com/maggy")) cta = "IG Maggy";
+    else if (href.includes("instagram.com/adgar")) cta = "IG Adgar";
+    else if (href.includes("watch?v=")) cta = a.textContent.includes("觀看") ? "到 YouTube 觀看（會員）" : "在 YouTube 開啟";
+    else if (href.includes("youtube.com/@")) cta = "YouTube 頻道";
+    const v = curPage === "watch" ? BYID[decodeURIComponent(location.hash.slice(8))] : null;
+    track("cta_click", { cta_name: cta, page_type: curPage, video_id: v ? v.id : "", video_type: v ? (v.member ? "會員" : "公開") : "" });
+  }
+});
+// 內嵌影片播放追蹤（YouTube IFrame API）
+let ytReady = null, ytTimer = null;
+function loadYT() {
+  if (!ytReady) ytReady = new Promise(res => {
+    window.onYouTubeIframeAPIReady = res;
+    const s = document.createElement("script"); s.src = "https://www.youtube.com/iframe_api"; document.head.appendChild(s);
+  });
+  return ytReady;
+}
+function trackPlayer(v) {
+  clearInterval(ytTimer);
+  loadYT().then(() => {
+    const el = document.getElementById("ytplayer");
+    if (!el || el.dataset.vid !== v.id) return;
+    const base = { video_id: v.id, video_title: v.title, video_type: v.member ? "會員" : "公開" };
+    let started = false, sent = new Set();
+    const player = new YT.Player("ytplayer", { events: { onStateChange: ev => {
+      if (ev.data === YT.PlayerState.PLAYING && !started) { started = true; track("yt_play", base); }
+      if (ev.data === YT.PlayerState.ENDED && !sent.has(100)) { sent.add(100); track("yt_complete", base); }
+    } } });
+    ytTimer = setInterval(() => {
+      try {
+        const d = player.getDuration(), t = player.getCurrentTime();
+        if (!d) return;
+        for (const p of [25, 50, 75]) if (t / d * 100 >= p && !sent.has(p)) { sent.add(p); track("yt_progress", { ...base, percent: p }); }
+      } catch (e) {}
+    }, 5000);
+  });
+}
 
 function go(form) {
   const q = form.q.value.trim();
@@ -155,7 +228,7 @@ async function init() {
   D.videos.forEach(v => new Set([...v.keywords, ...v.topics]).forEach(k => df[k] = (df[k] || 0) + 1));
   const n = D.videos.filter(v => v.indexed).length;
   for (const k in df) IDF[k] = Math.log(1 + n / df[k]);
-  $("#updated").textContent = `資料更新：${D.updated}・每週四晚上 8 點直播・本站內容僅供參考，不構成投資建議`;
+  $("#updated").textContent = `資料更新：${D.updated}・每週四晚上 8 點直播・本站內容僅供參考，不構成投資建議・本站使用 Google Analytics 統計瀏覽情形`;
   window.addEventListener("hashchange", route);
   route();
 }
@@ -235,6 +308,8 @@ function topKeywords(n) {
 /* ---------- 頁面 ---------- */
 function home() {
   $("#top").classList.add("home-mode");
+  lastSearch = null;
+  trackPage("home", "/", "首頁");
   const latest = D.videos.slice(0, 4);
   let html = `<div class="hero"><div class="wrap">
     <h1>想找哪一集？</h1><p>輸入主題、個股或關鍵字，找出財鯨動向直播講過的內容</p>
@@ -260,6 +335,15 @@ function results(params) {
   let list = q ? search(q) : D.videos.map(v => ({ v, score: 0, hits: [] }));
   const th = D.themes.find(t => t.id === theme);
   if (th) list = list.filter(x => x.v.topics.some(t => th.topics.includes(t)));
+  const state = { q, theme, type, sort };
+  if (q && (!lastSearch || lastSearch.q !== q)) {
+    track("search", { query: q, result_count: list.length });
+    if (!list.length) track("search_no_result", { query: q });
+  } else if (lastSearch && lastSearch.q === q) {
+    for (const k of ["sort", "type", "theme"]) if (lastSearch[k] !== state[k]) track("filter_change", { filter_name: k, filter_value: state[k] || "全部", query: q });
+  }
+  lastSearch = state;
+  trackPage("search", "/search", q ? "搜尋：" + q : th ? "主軸：" + th.name : "全部直播");
   if (type !== "all") list = list.filter(x => x.v.member === (type === "member"));
   const by = {
     rel: (a, b) => b.score - a.score || b.v.date.localeCompare(a.v.date),
@@ -315,7 +399,7 @@ function watch(id) {
     + v.keywords.slice(0, 18).map(t => `<a class="tag kw" href="#/search?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join("");
   const rel = related(v, 8);
   $("#app").innerHTML = `<div class="wrap"><div class="watch"><div>
-    <div class="player"><iframe src="https://www.youtube-nocookie.com/embed/${v.id}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
+    <div class="player"><iframe id="ytplayer" data-vid="${v.id}" src="https://www.youtube.com/embed/${v.id}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
     ${v.member ? `<div class="memberbar">🔒 這是會員專屬直播，加入會員後才能觀看。<a class="btn m" href="https://www.youtube.com/@GoodWhale_tw/join" target="_blank" rel="noopener">加入會員</a><a class="btn ghost" href="${yt}" target="_blank" rel="noopener">到 YouTube 觀看</a></div>` : ""}
     <h1>${esc(v.title)}</h1>
     <div class="meta">${fmtDate(v.date)}・${v.member ? "會員直播" : "公開直播"}${v.views != null ? "・" + fmtViews(v.views) : ""}・<a href="${yt}" target="_blank" rel="noopener">在 YouTube 開啟</a></div>
@@ -327,6 +411,10 @@ function watch(id) {
   <aside class="side"><h2>相關影片</h2>${rel.length ? rel.map(r => mini(r.x, r.why)).join("") : `<p class="note">還沒有其他相關影片。</p>`}</aside>
   </div></div>`;
   window.scrollTo(0, 0);
+  trackPage("watch", "/watch/" + v.id, v.title);
+  track("video_open", { video_id: v.id, video_title: v.title, video_type: v.member ? "會員" : "公開", video_date: v.date, click_source: nextSource || "直接進入" });
+  nextSource = "";
+  trackPlayer(v);
 }
 
 function route() {
