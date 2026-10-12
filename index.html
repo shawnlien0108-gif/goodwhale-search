@@ -80,6 +80,7 @@ select{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1p
 .btn{display:inline-block;padding:7px 14px;border-radius:9px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:500}
 .btn.ghost{background:none;border:1px solid var(--line);color:var(--text)}
 .btn.m{background:var(--member)}
+.btn.mighty{background:none;border:1px solid var(--member);color:var(--member)}
 .box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-top:16px}
 .box h2{font-size:16px;margin:0 0 10px}
 .segs{list-style:none;margin:0;padding:0}
@@ -174,6 +175,7 @@ document.addEventListener("click", e => {
   if (/^https?:/.test(href)) {
     let cta = "其他外部連結";
     if (href.includes("/join")) cta = "加入會員";
+    else if (href.includes("community.goodwhale.com")) cta = "Mighty 會員看回放";
     else if (href.includes("instagram.com/real.goodwhale")) cta = "IG 財鯨動向";
     else if (href.includes("instagram.com/j.perfectionist")) cta = "IG JohnJohn";
     else if (href.includes("instagram.com/maggy")) cta = "IG Maggy";
@@ -400,7 +402,8 @@ function watch(id) {
   const rel = related(v, 8);
   $("#app").innerHTML = `<div class="wrap"><div class="watch"><div>
     <div class="player"><iframe id="ytplayer" data-vid="${v.id}" src="https://www.youtube.com/embed/${v.id}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>
-    ${v.member ? `<div class="memberbar">🔒 這是會員專屬直播，加入會員後才能觀看。<a class="btn m" href="https://www.youtube.com/@GoodWhale_tw/join" target="_blank" rel="noopener">加入會員</a><a class="btn ghost" href="${yt}" target="_blank" rel="noopener">到 YouTube 觀看</a></div>` : ""}
+    ${v.member ? `<div class="memberbar">🔒 這是會員專屬直播，加入會員後才能觀看。<a class="btn m" href="https://www.youtube.com/@GoodWhale_tw/join" target="_blank" rel="noopener">加入會員</a><a class="btn ghost" href="${yt}" target="_blank" rel="noopener">到 YouTube 觀看</a>${v.mighty ? `<a class="btn mighty" href="${esc(v.mighty)}" target="_blank" rel="noopener">Mighty 會員看回放</a>` : ""}</div>`
+      : v.mighty ? `<div class="memberbar">Mighty 會員也可以到社群看這場的回放。<a class="btn mighty" href="${esc(v.mighty)}" target="_blank" rel="noopener">Mighty 會員看回放</a></div>` : ""}
     <h1>${esc(v.title)}</h1>
     <div class="meta">${fmtDate(v.date)}・${v.member ? "會員直播" : "公開直播"}${v.views != null ? "・" + fmtViews(v.views) : ""}・<a href="${yt}" target="_blank" rel="noopener">在 YouTube 開啟</a></div>
     ${sib ? `<div class="box"><h2>同一場直播的${sib.member ? "會員段" : "公開段"}</h2>${mini(sib)}</div>` : ""}
