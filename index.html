@@ -75,12 +75,13 @@ select{font:inherit;font-size:14px;padding:6px 10px;border-radius:10px;border:1p
 .watch{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;margin-top:24px}
 .player{aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden}
 .player iframe{width:100%;height:100%;border:0;display:block}
-.mplayer{position:relative;display:block;text-decoration:none}
+.mplayer{position:relative}
 .mplayer img{width:100%;height:100%;object-fit:cover;display:block;filter:brightness(.45)}
 .mplay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#fff;text-align:center;padding:16px}
-.mplay b{display:inline-block;padding:10px 20px;border-radius:999px;background:var(--member);font-size:16px}
+.mplay .go{display:inline-block;padding:10px 20px;border-radius:999px;background:var(--member);color:#fff;font-size:16px;font-weight:700;text-decoration:none}
+.mplay .go.alt{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.7);font-size:14px;font-weight:500;padding:7px 16px}
+.mplay .go:hover{filter:brightness(1.12)}
 .mplay small{opacity:.85;font-size:13px}
-.mplayer:hover b{filter:brightness(1.1)}
 .watch h1{font-size:21px;margin:14px 0 4px;line-height:1.45}
 .memberbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--member-soft);color:var(--member);border-radius:10px;padding:10px 14px;margin-top:12px;font-size:14px}
 .btn{display:inline-block;padding:7px 14px;border-radius:9px;background:var(--accent);color:#fff;text-decoration:none;font-size:14px;font-weight:500}
@@ -413,9 +414,9 @@ function watch(id) {
   $("#app").innerHTML = `<div class="wrap"><div class="watch"><div>
     ${v.member
       // 會員影片無法在網頁內嵌播放，改放封面＋前往 YouTube 的按鈕
-      ? `<a class="player mplayer" href="${yt}" target="_blank" rel="noopener" data-src="播放區"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt=""><span class="mplay"><b>▶ 前往 YouTube 觀看</b><small>會員限定直播，會員請到 YouTube 觀看</small></span></a>`
+      ? `<div class="player mplayer"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt=""><div class="mplay"><a class="go" href="${yt}" target="_blank" rel="noopener" data-src="播放區">▶ 前往 YouTube 觀看</a><small>會員限定直播，會員請到 YouTube 觀看</small>${v.mighty ? `<a class="go alt" href="${esc(v.mighty)}" target="_blank" rel="noopener" data-src="播放區">Mighty 會員看回放</a>` : ""}</div></div>`
       : `<div class="player"><iframe id="ytplayer" data-vid="${v.id}" src="https://www.youtube.com/embed/${v.id}?enablejsapi=1&origin=${encodeURIComponent(location.origin)}" title="${esc(v.title)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`}
-    ${v.member ? `<div class="memberbar">🔒 這是會員專屬直播，還不是會員可以先加入。<a class="btn m" href="https://www.youtube.com/@GoodWhale_tw/join" target="_blank" rel="noopener">加入會員</a><a class="btn ghost" href="${yt}" target="_blank" rel="noopener">到 YouTube 觀看</a>${v.mighty ? `<a class="btn mighty" href="${esc(v.mighty)}" target="_blank" rel="noopener">Mighty 會員看回放</a>` : ""}</div>`
+    ${v.member ? `<div class="memberbar">🔒 這是會員專屬直播，還不是會員可以先加入。<a class="btn m" href="https://www.youtube.com/@GoodWhale_tw/join" target="_blank" rel="noopener">加入會員</a></div>`
       : v.mighty ? `<div class="memberbar">Mighty 會員也可以到社群看這場的回放。<a class="btn mighty" href="${esc(v.mighty)}" target="_blank" rel="noopener">Mighty 會員看回放</a></div>` : ""}
     <h1>${esc(v.title)}</h1>
     <div class="meta">${fmtDate(v.date)}・${v.member ? "會員直播" : "公開直播"}${v.views != null ? "・" + fmtViews(v.views) : ""}・<a href="${yt}" target="_blank" rel="noopener">在 YouTube 開啟</a></div>
