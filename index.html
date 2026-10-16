@@ -116,6 +116,48 @@ footer{background:var(--brand);color:var(--brand-ink);margin-top:56px;padding:32
 .fbtn.join{background:var(--accent);border-color:var(--accent)}
 .fine{margin-top:22px;font-size:12.5px;opacity:.6}
 .loading{padding:80px 0;text-align:center;color:var(--muted)}
+/* 專屬片單測驗 */
+.quiz-cta{display:inline-flex;align-items:center;gap:8px;margin-top:18px;padding:10px 18px;border-radius:999px;background:#fff;color:var(--brand);font:inherit;font-weight:700;font-size:15px;border:0;cursor:pointer}
+.quiz-cta:hover{filter:brightness(.95)}
+.quiz-fab{position:fixed;right:16px;bottom:16px;z-index:20;display:flex;align-items:center;gap:6px;padding:10px 16px;border-radius:999px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.quiz-fab:hover{filter:brightness(1.08)}
+.qz-back{position:fixed;inset:0;z-index:50;background:rgba(8,16,24,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.qz{background:var(--surface);color:var(--text);width:100%;max-width:560px;max-height:calc(100vh - 32px);overflow:auto;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.3);position:relative}
+.qz-head{position:sticky;top:0;background:var(--surface);padding:16px 20px 10px;z-index:1}
+.qz-x{position:absolute;right:10px;top:8px;border:0;background:none;color:var(--muted);font-size:24px;line-height:1;cursor:pointer;padding:6px 8px}
+.qz-step{font-size:13px;color:var(--muted)}
+.qz-bar{height:4px;background:var(--surface2);border-radius:4px;margin-top:8px;overflow:hidden}
+.qz-bar i{display:block;height:100%;background:var(--accent);transition:width .25s}
+.qz-body{padding:4px 20px 20px}
+.qz h2{font-size:20px;margin:6px 0 4px;line-height:1.4}
+.qz .hint{color:var(--muted);font-size:13.5px;margin:0 0 14px}
+.qz-opts{display:grid;gap:8px}
+.qz-opts.two{grid-template-columns:1fr 1fr}
+.qz-opt{text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:11px 14px;font:inherit;font-size:15px;cursor:pointer}
+.qz-opt:hover{border-color:var(--accent)}
+.qz-opt.on{border-color:var(--accent);background:var(--accent-soft);color:var(--text);font-weight:500}
+.qz-nav{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:16px}
+.qz-btn{border:0;border-radius:10px;padding:10px 20px;font:inherit;font-weight:700;background:var(--accent);color:#fff;cursor:pointer}
+.qz-btn:disabled{opacity:.4;cursor:default}
+.qz-link{border:0;background:none;color:var(--muted);font:inherit;font-size:14px;cursor:pointer;padding:6px 0}
+.qz-intro{text-align:center;padding:12px 0 4px}
+.qz-intro .big{font-size:40px}
+.qz-intro p{color:var(--muted);margin:6px 0 18px}
+.qz-list{display:grid;gap:12px;margin:12px 0 4px}
+.qz-list .mini{margin:0}
+.qz-list .why{white-space:normal}
+.qz-lock{position:relative}
+.qz-lock .mini{filter:blur(4px);pointer-events:none;user-select:none}
+.qz-mail{background:var(--accent-soft);border-radius:12px;padding:16px;margin-top:14px}
+.qz-mail h3{margin:0 0 4px;font-size:17px}
+.qz-mail p{margin:0 0 12px;font-size:14px;color:var(--muted)}
+.qz-mail form{display:flex;gap:8px}
+.qz-mail input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:var(--surface);color:var(--text)}
+.qz-mail small{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
+.qz-ok{font-weight:500;color:var(--accent)}
+.qz-err{color:#c0392b;font-size:13px;margin-top:6px}
+.qz-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;margin-top:16px}
+@media (max-width:560px){.qz-back{padding:0;align-items:flex-end}.qz{max-height:92vh;border-radius:16px 16px 0 0}.qz-opts.two{grid-template-columns:1fr}.qz-mail form{flex-direction:column}.quiz-fab{right:12px;bottom:12px}}
 </style>
 <!-- Google Analytics 4：記錄網站使用情形（評估 ID 在下面兩處） -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-XSLYCYYWWG"></script>
@@ -132,6 +174,8 @@ gtag("config", "G-XSLYCYYWWG", { send_page_view: false });
   <form class="searchbox" onsubmit="return go(this)"><input name="q" type="search" placeholder="搜尋主題、個股、關鍵字" aria-label="搜尋"><button>搜尋</button></form>
 </div></header>
 <main id="app"><div class="loading">載入中…</div></main>
+<button class="quiz-fab" type="button" onclick="openQuiz('右下角按鈕')">🎯 專屬片單</button>
+<div id="quiz"></div>
 <footer><div class="wrap">
   <div class="fgrid">
     <div><h4>追蹤財鯨動向</h4><div class="links">
@@ -327,6 +371,7 @@ function home() {
   let html = `<div class="hero"><div class="wrap">
     <h1>想找哪一集？</h1><p>輸入主題、個股或關鍵字，找出財鯨動向直播講過的內容</p>
     <form class="searchbox" onsubmit="return go(this)"><input name="q" type="search" placeholder="例如：台積電、CPO、美債、資產配置" aria-label="搜尋"><button>搜尋</button></form>
+    <button class="quiz-cta" type="button" onclick="openQuiz('首頁橫幅')">🎯 1 分鐘測驗，拿你的專屬直播片單</button>
     <div class="chips">${topKeywords(12).map(k => `<a class="chip" href="#/search?q=${encodeURIComponent(k)}">${esc(k)}</a>`).join("")}</div>
   </div></div><div class="wrap">
   <section><div class="sec-head"><h2>最新直播</h2><a href="#/search?sort=new">看全部 →</a></div><div class="grid">${latest.map(v => card(v)).join("")}</div></section>`;
@@ -435,9 +480,204 @@ function watch(id) {
   if (!v.member) trackPlayer(v);
 }
 
+/* ---------- 專屬片單測驗 ----------
+   規劃文件：專案「網站-專屬片單測驗規劃」。
+   每個選項 → tp 細分類、kw 關鍵字（部分比對）、txt 段落文字，各自加分；複選時權重平分。 */
+const QUIZ_CFG = {
+  EMAIL_GATE: 3,      // 先顯示幾部，其餘留 Email 解鎖；設 0 = 全部直接顯示
+  MAILERLITE_URL: "", // MailerLite 表單送出網址，還沒串接先留空（留空時只解鎖，不會真的寄出）
+  QW: { exp: 1, goal: .7, asset: 1.8, topic: 2.2, want: 1.2 }, // 各題權重
+};
+const QUIZ = [
+  { id: "exp", q: "你投資多久了？", opts: {
+    "新手": { tp: { "操作策略": .6, "槓桿與風險": .6, "資產配置": .6, "理財商品": .6 }, kw: { "定期定額": 1, "緊急預備金": 1, "0050": .5 } },
+    "1–3 年": { tp: { "操作策略": .3, "財報解讀": .3, "估值": .3 } },
+    "3 年以上": { tp: { "估值": .4, "財報解讀": .4, "總經與利率": .3 } } } },
+  { id: "goal", q: "你最想搞懂什麼？", opts: {
+    "怎麼買賣與控制風險": { theme: "投資心態與策略" },
+    "錢怎麼分配": { theme: "資產配置" },
+    "哪些產業有機會": { theme: "個股與產業分析" },
+    "看懂財報": { theme: "財報分析" },
+    "總經怎麼影響市場": { theme: "總經與國際局勢" },
+    "台股美股走勢": { theme: "台股與美股市場" } } },
+  { id: "asset", q: "你主要投資哪些標的？", multi: 8, hint: "可以複選", opts: {
+    "台股": { tp: { "台股市場": .8, "台股制度": .3 }, kw: { "台積電": .4 } },
+    "美股": { tp: { "美股市場": .8 }, kw: { "S&P500": .3, "Russell": .2 } },
+    "ETF": { kw: { "ETF": .8, "00": .6, "0050": .6, "定期定額": .4 } },
+    "債券": { tp: { "債券": 1 }, kw: { "美債": .4, "債": .3 } },
+    "加密貨幣": { kw: { "Bitcoin": 1, "加密": 1, "穩定幣": .8, "代幣": .6 } },
+    "黃金與原物料": { kw: { "黃金": 1, "油": .6, "原物料": .6 } },
+    "外匯": { tp: { "匯率": 1 }, kw: { "日圓": .4, "新台幣": .4 } },
+    "還沒開始投資": { tp: { "資產配置": .5, "理財商品": .5 }, only: true } } },
+  { id: "topic", q: "你關注哪些主題？", multi: 3, hint: "最多選 3 個", opts: {
+    "AI 模型與應用": { tp: { "AI 產業": .5, "AI Agent": .8 }, kw: { "OpenAI": .5, "Anthropic": .5, "Token": .3 } },
+    "半導體": { tp: { "半導體": 1 }, kw: { "台積電": .3, "NVIDIA": .3 } },
+    "記憶體": { tp: { "記憶體": 1 }, kw: { "HBM": .4, "美光": .4 } },
+    "科技巨頭": { kw: { "Google": .4, "Microsoft": .4, "Apple": .4, "Amazon": .4, "Meta": .4 } },
+    "軟體與資安": { tp: { "資安": 1 }, kw: { "SaaS": .6, "Palantir": .4, "Oracle": .4, "CrowdStrike": .4 } },
+    "電動車與 Tesla": { kw: { "Tesla": 1, "電動車": .6 } },
+    "太空產業": { kw: { "SpaceX": 1, "太空": .8, "衛星": .5 } },
+    "能源與電力": { kw: { "電力": 1, "能源": .8, "核能": .6, "油": .3 } },
+    "Fed 與利率": { tp: { "總經與利率": .8 }, kw: { "FOMC": .6, "降息": .5, "升息": .5 } },
+    "川普關稅與地緣政治": { tp: { "地緣政治": .8 }, kw: { "關稅": .6, "川普": .4 } },
+    "中國經濟": { kw: { "中國": .8, "人民幣": .5, "阿里巴巴": .4 } } } },
+  { id: "want", q: "你最希望在財鯨動向看到什麼？", opts: {
+    "近期市場趨勢": { fresh: .4, tp: { "台股市場": .3, "美股市場": .3 } },
+    "投資心態": { fresh: .03, tp: { "操作策略": .8, "槓桿與風險": .8 }, txt: { "心態": .8, "長期": .3 } },
+    "財報分析技巧": { fresh: .08, tp: { "財報解讀": 1, "估值": .6 }, kw: { "自由現金流": .5, "毛利率": .5, "表外負債": .5, "本益比": .4 } },
+    "趨勢判定": { fresh: .15, txt: { "劇本": 1.2, "推演": 1, "情境": .8 }, tp: { "總經與利率": .3 } } } },
+  { id: "member", q: "你是財鯨動向的 YouTube 會員嗎？", opts: { "是": {}, "不是": {} } },
+];
+let QZ = null; // { step, ans, src, list, unlocked }
+
+function quizWeights(ans) {
+  const W2 = { tp: {}, kw: {}, txt: {}, fresh: .2 };
+  for (const Q of QUIZ) {
+    if (Q.id === "member") continue;
+    const sel = [].concat(ans[Q.id] || []);
+    for (const a of sel) {
+      const o = Q.opts[a], f = (QUIZ_CFG.QW[Q.id] || 1) / sel.length;
+      const tp = o.theme ? Object.fromEntries((D.themes.find(t => t.name === o.theme)?.topics || []).map(t => [t, 1])) : o.tp;
+      for (const k in tp || {}) W2.tp[k] = (W2.tp[k] || 0) + tp[k] * f;
+      for (const k in o.kw || {}) W2.kw[k] = (W2.kw[k] || 0) + o.kw[k] * f;
+      for (const k in o.txt || {}) W2.txt[k] = (W2.txt[k] || 0) + o.txt[k] * f;
+      if (o.fresh != null) W2.fresh = o.fresh;
+    }
+  }
+  return W2;
+}
+function quizPlaylist(ans) {
+  const w = quizWeights(ans), today = new Date(D.updated || Date.now());
+  const maxv = Math.max(...D.videos.map(v => v.views || 0)) || 1;
+  const rows = D.videos.filter(v => v.segs.length).map(v => {
+    let m = 0; const hit = {};
+    for (const s of v.segs) {
+      for (const t of s.tp) if (w.tp[t]) { m += w.tp[t]; hit[t] = (hit[t] || 0) + w.tp[t]; }
+      for (const k in w.kw) { const x = s.kw.find(z => z.includes(k)); if (x) { m += w.kw[k]; hit[x] = (hit[x] || 0) + w.kw[k]; } }
+      for (const k in w.txt) if ((s.t + s.s).includes(k)) m += w.txt[k];
+    }
+    m /= v.segs.length;
+    const days = (today - new Date(v.date)) / 864e5;
+    const pop = v.member ? .3 : (v.views || 0) / maxv;
+    const score = m * (1 - w.fresh - .1) + w.fresh * Math.exp(-days / 150) * 2 + .2 * pop;
+    const why = Object.keys(hit).sort((a, b) => hit[b] - hit[a]).slice(0, 3);
+    return { v, score, why };
+  }).sort((a, b) => b.score - a.score);
+  const nm = ans.member === "是" ? 3 : 1, np = 6 - nm, out = [], dates = new Set();
+  let cp = 0, cm = 0;
+  for (const r of rows) {
+    if (dates.has(r.v.date)) continue; // 同一集直播只推一支
+    if (r.v.member ? cm >= nm : cp >= np) continue;
+    r.v.member ? cm++ : cp++;
+    dates.add(r.v.date); out.push(r);
+    if (out.length === 6) break;
+  }
+  return out.sort((a, b) => a.v.member - b.v.member);
+}
+
+function openQuiz(src) {
+  QZ = { step: -1, ans: {}, src: src || "直接連結", list: null, unlocked: false };
+  track("quiz_open", { click_source: QZ.src });
+  document.body.style.overflow = "hidden";
+  renderQuiz();
+}
+function closeQuiz() {
+  if (QZ && !QZ.list) track("quiz_close", { step: QZ.step + 1 });
+  QZ = null; $("#quiz").innerHTML = ""; document.body.style.overflow = "";
+  if (location.hash === "#/quiz") history.replaceState(null, "", "#/");
+}
+function quizPick(i) {
+  const Q = QUIZ[QZ.step], key = Object.keys(Q.opts)[i];
+  if (!Q.multi) { QZ.ans[Q.id] = key; return quizNext(); }
+  let sel = QZ.ans[Q.id] || [];
+  if (Q.opts[key].only) sel = sel.includes(key) ? [] : [key];
+  else {
+    sel = sel.filter(x => !Q.opts[x].only);
+    if (sel.includes(key)) sel = sel.filter(x => x !== key);
+    else if (sel.length < Q.multi) sel = [...sel, key];
+  }
+  QZ.ans[Q.id] = sel; renderQuiz();
+}
+function quizNext() {
+  if (QZ.step === -1) track("quiz_start", { click_source: QZ.src });
+  QZ.step++;
+  if (QZ.step >= QUIZ.length) {
+    QZ.list = quizPlaylist(QZ.ans);
+    QZ.unlocked = !QUIZ_CFG.EMAIL_GATE;
+    const p = { click_source: QZ.src };
+    for (const Q of QUIZ) p["q_" + Q.id] = [].concat(QZ.ans[Q.id]).join("、");
+    track("quiz_complete", p);
+  }
+  renderQuiz();
+}
+function quizBack() { QZ.step--; renderQuiz(); }
+async function quizEmail(form) {
+  const email = form.email.value.trim(), err = form.querySelector(".qz-err");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = "Email 格式好像不太對，再檢查一下"; return false; }
+  form.querySelector("button").disabled = true;
+  if (QUIZ_CFG.MAILERLITE_URL) {
+    // 之後串 MailerLite：把 Email、答案、片單影片 ID 一起送出
+    const fd = new FormData();
+    fd.append("fields[email]", email);
+    for (const Q of QUIZ) fd.append(`fields[quiz_${Q.id}]`, [].concat(QZ.ans[Q.id]).join("、"));
+    fd.append("fields[quiz_playlist]", QZ.list.map(r => r.v.id).join(","));
+    try { await fetch(QUIZ_CFG.MAILERLITE_URL, { method: "POST", body: fd, mode: "no-cors" }); } catch (e) {}
+  }
+  track("quiz_email_submit", { click_source: QZ.src, connected: QUIZ_CFG.MAILERLITE_URL ? "是" : "否（預覽版）" });
+  QZ.unlocked = true; QZ.sent = true; renderQuiz();
+  return false;
+}
+function renderQuiz() {
+  if (!QZ) return;
+  const total = QUIZ.length, s = QZ.step;
+  let head = "", body = "";
+  if (s === -1) {
+    body = `<div class="qz-intro"><div class="big">🎯</div><h2>想要財鯨動向幫你打造專屬直播片單嗎？</h2>
+      <p>回答 ${total} 個小問題，我們從 ${D.videos.length} 支直播裡，挑出最適合你的 6 支。</p>
+      <button class="qz-btn" onclick="quizNext()">開始測驗</button></div>`;
+  } else if (s < total) {
+    const Q = QUIZ[s], keys = Object.keys(Q.opts), sel = [].concat(QZ.ans[Q.id] || []);
+    head = `<div class="qz-step">第 ${s + 1} 題 / 共 ${total} 題</div><div class="qz-bar"><i style="width:${(s + 1) / total * 100}%"></i></div>`;
+    body = `<h2>${esc(Q.q)}</h2>${Q.hint ? `<p class="hint">${esc(Q.hint)}</p>` : `<p class="hint">選一個最接近的</p>`}
+      <div class="qz-opts ${keys.length > 5 ? "two" : ""}">${keys.map((k, i) => `<button class="qz-opt ${sel.includes(k) ? "on" : ""}" onclick="quizPick(${i})">${esc(k)}</button>`).join("")}</div>
+      <div class="qz-nav"><button class="qz-link" onclick="${s ? "quizBack()" : "QZ.step=-1;renderQuiz()"}">← 上一題</button>
+      ${Q.multi ? `<button class="qz-btn" onclick="quizNext()" ${sel.length ? "" : "disabled"}>下一題</button>` : ""}</div>`;
+  } else {
+    const gate = QZ.unlocked ? QZ.list.length : QUIZ_CFG.EMAIL_GATE;
+    const item = r => mini(r.v, r.why.length ? "因為你關注：" + r.why.join("、") : "");
+    const mail = `<div class="qz-mail">${QZ.sent
+        ? `<p class="qz-ok">✓ 已收到！${QUIZ_CFG.MAILERLITE_URL ? "片單會寄到你的信箱，之後每週也會推薦新直播給你。" : "（預覽版：Email 還沒串接，這次不會真的寄出）"}</p>`
+        : `<h3>${QZ.unlocked ? "把這份片單寄給自己" : `留下 Email，解鎖另外 ${QZ.list.length - gate} 支`}</h3>
+        <p>我們會把片單寄給你，之後每週直播也會依你的興趣推薦新的一集。</p>
+        <form onsubmit="return quizEmail(this)"><input name="email" type="email" placeholder="你的 Email" required autocomplete="email"><button class="qz-btn">寄給我</button></form>
+        <div class="qz-err"></div>
+        <small>Email 僅用於寄送片單與財鯨電子報，可隨時取消訂閱。</small>`}</div>`;
+    body = `<h2>你的專屬直播片單</h2><p class="hint">依你的回答，從所有直播挑出這 ${QZ.list.length} 支${QZ.ans.member === "是" ? "，會員影片請到 YouTube 觀看" : ""}</p>
+      <div class="qz-list">${QZ.list.slice(0, gate).map(item).join("")}</div>
+      ${QZ.unlocked ? mail : mail + `<div class="qz-list">${QZ.list.slice(gate).map(r => `<div class="qz-lock">${item(r)}</div>`).join("")}</div>`}
+      <div class="qz-foot"><button class="qz-link" onclick="openQuiz('重新測驗')">↺ 重新測驗</button>
+        ${QZ.ans.member === "是" ? "" : `<a class="btn m" href="https://www.youtube.com/@GoodWhale_tw/join" target="_blank" rel="noopener" data-src="測驗結果">加入會員看完整直播</a>`}</div>`;
+  }
+  $("#quiz").innerHTML = `<div class="qz-back" onclick="if(event.target===this)closeQuiz()"><div class="qz" role="dialog" aria-modal="true" aria-label="專屬片單測驗">
+    <button class="qz-x" onclick="closeQuiz()" aria-label="關閉">×</button>
+    ${head ? `<div class="qz-head">${head}</div>` : `<div style="height:36px"></div>`}<div class="qz-body">${body}</div></div></div>`;
+  $(".qz").scrollTop = 0;
+}
+// 點測驗結果裡的影片：記一筆 quiz_video_click，並關掉視窗去影片頁
+document.addEventListener("click", e => {
+  const a = e.target.closest(".qz-list a.mini");
+  if (!a || !QZ) return;
+  const id = a.getAttribute("href").slice(8), i = QZ.list.findIndex(r => r.v.id === id);
+  track("quiz_video_click", { video_id: id, position: i + 1, video_type: BYID[id]?.member ? "會員" : "公開" });
+  nextSource = "專屬片單";
+  QZ = null; $("#quiz").innerHTML = ""; document.body.style.overflow = "";
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && QZ) closeQuiz(); });
+
 function route() {
   const h = location.hash.slice(1) || "/";
   const [path, qs] = h.split("?");
+  if (path === "/quiz") { home(); if (!QZ) openQuiz(new URLSearchParams(qs || "").get("src") || "直接連結"); return; }
   if (path.startsWith("/watch/")) watch(decodeURIComponent(path.slice(7)));
   else if (path === "/search") results(new URLSearchParams(qs || ""));
   else home();
