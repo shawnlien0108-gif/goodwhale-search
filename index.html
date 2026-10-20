@@ -485,7 +485,9 @@ function watch(id) {
    每個選項 → tp 細分類、kw 關鍵字（部分比對）、txt 段落文字，各自加分；複選時權重平分。 */
 const QUIZ_CFG = {
   EMAIL_GATE: 3,      // 先顯示幾部，其餘留 Email 解鎖；設 0 = 全部直接顯示
-  MAILERLITE_URL: "", // MailerLite 表單送出網址，還沒串接先留空（留空時只解鎖，不會真的寄出）
+  MAILERLITE_URL: "https://assets.mailerlite.com/jsonp/2727160/forms/201840269540198078/subscribe", // MailerLite 表單送出網址
+  SHEET_URL: "",      // Google Sheet（Apps Script 網頁應用程式）網址，留空 = 不記到 Sheet
+  SHEET_SAVE_EMAIL: false, // Sheet 是否也存 Email；false = 只記「有沒有留」，Email 只放 MailerLite
   QW: { exp: 1, goal: .7, asset: 1.8, topic: 2.2, want: 1.2 }, // 各題權重
 };
 const QUIZ = [
@@ -607,22 +609,38 @@ function quizNext() {
     const p = { click_source: QZ.src };
     for (const Q of QUIZ) p["q_" + Q.id] = [].concat(QZ.ans[Q.id]).join("、");
     track("quiz_complete", p);
+    QZ.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    toSheet({ type: "complete", id: QZ.id, source: QZ.src, ...quizAnswers(), playlist: QZ.list.map(r => r.v.date + " " + (r.v.member ? "會員" : "公開")).join("、"), playlist_ids: QZ.list.map(r => r.v.id).join(",") });
   }
   renderQuiz();
 }
 function quizBack() { QZ.step--; renderQuiz(); }
+function quizAnswers() {
+  const o = {};
+  for (const Q of QUIZ) o["quiz_" + Q.id] = [].concat(QZ.ans[Q.id] || []).join("、");
+  return o;
+}
+// 記到 Google Sheet（Apps Script）；失敗不影響使用者
+function toSheet(data) {
+  if (!QUIZ_CFG.SHEET_URL) return;
+  try { fetch(QUIZ_CFG.SHEET_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(data) }); } catch (e) {}
+}
 async function quizEmail(form) {
   const email = form.email.value.trim(), err = form.querySelector(".qz-err");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = "Email 格式好像不太對，再檢查一下"; return false; }
   form.querySelector("button").disabled = true;
   if (QUIZ_CFG.MAILERLITE_URL) {
-    // 之後串 MailerLite：把 Email、答案、片單影片 ID 一起送出
+    // 送到 MailerLite：Email、各題答案、片單影片 ID、入口
     const fd = new FormData();
     fd.append("fields[email]", email);
-    for (const Q of QUIZ) fd.append(`fields[quiz_${Q.id}]`, [].concat(QZ.ans[Q.id]).join("、"));
+    for (const [k, v] of Object.entries(quizAnswers())) fd.append(`fields[${k}]`, v);
     fd.append("fields[quiz_playlist]", QZ.list.map(r => r.v.id).join(","));
+    fd.append("fields[quiz_source]", QZ.src);
+    fd.append("ml-submit", "1");
+    fd.append("anticsrf", "true");
     try { await fetch(QUIZ_CFG.MAILERLITE_URL, { method: "POST", body: fd, mode: "no-cors" }); } catch (e) {}
   }
+  toSheet({ type: "email", id: QZ.id, email: QUIZ_CFG.SHEET_SAVE_EMAIL ? email : "" });
   track("quiz_email_submit", { click_source: QZ.src, connected: QUIZ_CFG.MAILERLITE_URL ? "是" : "否（預覽版）" });
   QZ.unlocked = true; QZ.sent = true; renderQuiz();
   return false;
@@ -646,12 +664,12 @@ function renderQuiz() {
     const gate = QZ.unlocked ? QZ.list.length : QUIZ_CFG.EMAIL_GATE;
     const item = r => mini(r.v, r.why.length ? "因為你關注：" + r.why.join("、") : "");
     const mail = `<div class="qz-mail">${QZ.sent
-        ? `<p class="qz-ok">✓ 已收到！${QUIZ_CFG.MAILERLITE_URL ? "片單會寄到你的信箱，之後每週也會推薦新直播給你。" : "（預覽版：Email 還沒串接，這次不會真的寄出）"}</p>`
-        : `<h3>${QZ.unlocked ? "把這份片單寄給自己" : `留下 Email，解鎖另外 ${QZ.list.length - gate} 支`}</h3>
-        <p>我們會把片單寄給你，之後每週直播也會依你的興趣推薦新的一集。</p>
-        <form onsubmit="return quizEmail(this)"><input name="email" type="email" placeholder="你的 Email" required autocomplete="email"><button class="qz-btn">寄給我</button></form>
+        ? `<p class="qz-ok">✓ 已解鎖！財鯨電子報上線後，會第一個通知你。</p>`
+        : `<h3>${QZ.unlocked ? "訂閱財鯨電子報" : `留下 Email，解鎖另外 ${QZ.list.length - gate} 支`}</h3>
+        <p>財鯨電子報即將上線，之後每週會依你的興趣推薦新的直播。</p>
+        <form onsubmit="quizEmail(this);return false"><input name="email" type="email" placeholder="你的 Email" required autocomplete="email"><button class="qz-btn">解鎖片單</button></form>
         <div class="qz-err"></div>
-        <small>Email 僅用於寄送片單與財鯨電子報，可隨時取消訂閱。</small>`}</div>`;
+        <small>Email 僅用於財鯨電子報與片單推薦，可隨時取消訂閱。</small>`}</div>`;
     body = `<h2>你的專屬直播片單</h2><p class="hint">依你的回答，從所有直播挑出這 ${QZ.list.length} 支${QZ.ans.member === "是" ? "，會員影片請到 YouTube 觀看" : ""}</p>
       <div class="qz-list">${QZ.list.slice(0, gate).map(item).join("")}</div>
       ${QZ.unlocked ? mail : mail + `<div class="qz-list">${QZ.list.slice(gate).map(r => `<div class="qz-lock">${item(r)}</div>`).join("")}</div>`}
