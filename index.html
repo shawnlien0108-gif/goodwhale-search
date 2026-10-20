@@ -486,7 +486,7 @@ function watch(id) {
 const QUIZ_CFG = {
   EMAIL_GATE: 3,      // 先顯示幾部，其餘留 Email 解鎖；設 0 = 全部直接顯示
   MAILERLITE_URL: "https://assets.mailerlite.com/jsonp/2727160/forms/201840269540198078/subscribe", // MailerLite 表單送出網址
-  SHEET_URL: "",      // Google Sheet（Apps Script 網頁應用程式）網址，留空 = 不記到 Sheet
+  SHEET_URL: "https://script.google.com/macros/s/AKfycbwEK55tMwgSv1LzetxFqXKbXprfAb42eN0X2wMGv7f03D1uGyxemcl3FTxt8u1fvpg9/exec",      // Google Sheet（Apps Script 網頁應用程式）網址，留空 = 不記到 Sheet
   SHEET_SAVE_EMAIL: false, // Sheet 是否也存 Email；false = 只記「有沒有留」，Email 只放 MailerLite
   QW: { exp: 1, goal: .7, asset: 1.8, topic: 2.2, want: 1.2 }, // 各題權重
 };
