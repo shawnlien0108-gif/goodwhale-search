@@ -156,6 +156,10 @@ footer{background:var(--brand);color:var(--brand-ink);margin-top:56px;padding:32
 .qz-mail small{display:block;margin-top:8px;font-size:12px;color:var(--muted)}
 .qz-ok{font-weight:500;color:var(--accent)}
 .qz-err{color:#c0392b;font-size:13px;margin-top:6px}
+.qz-other{display:block;margin-top:12px;font-size:14px}
+.qz-other span{display:block;margin-bottom:6px;font-weight:500}
+.qz-other small{color:var(--muted);font-weight:400;margin-left:4px}
+.qz-other input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:var(--surface);color:var(--text)}
 .qz-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;margin-top:16px}
 @media (max-width:560px){.qz-back{padding:0;align-items:flex-end}.qz{max-height:92vh;border-radius:16px 16px 0 0}.qz-opts.two{grid-template-columns:1fr}.qz-mail form{flex-direction:column}.quiz-fab{right:12px;bottom:12px}}
 </style>
@@ -502,7 +506,7 @@ const QUIZ = [
     "看懂財報": { theme: "財報分析" },
     "總經怎麼影響市場": { theme: "總經與國際局勢" },
     "台股美股走勢": { theme: "台股與美股市場" } } },
-  { id: "asset", q: "你主要投資哪些標的？", multi: 8, hint: "可以複選", opts: {
+  { id: "asset", q: "你主要投資哪些標的？", multi: 8, shuffle: true, hint: "可以複選", opts: {
     "台股": { tp: { "台股市場": .8, "台股制度": .3 }, kw: { "台積電": .4 } },
     "美股": { tp: { "美股市場": .8 }, kw: { "S&P500": .3, "Russell": .2 } },
     "ETF": { kw: { "ETF": .8, "00": .6, "0050": .6, "定期定額": .4 } },
@@ -511,7 +515,7 @@ const QUIZ = [
     "黃金與原物料": { kw: { "黃金": 1, "油": .6, "原物料": .6 } },
     "外匯": { tp: { "匯率": 1 }, kw: { "日圓": .4, "新台幣": .4 } },
     "還沒開始投資": { tp: { "資產配置": .5, "理財商品": .5 }, only: true } } },
-  { id: "topic", q: "你關注哪些主題？", multi: 3, hint: "最多選 3 個", opts: {
+  { id: "topic", q: "你關注哪些主題？", multi: 3, shuffle: true, hint: "最多選 3 個", opts: {
     "AI 模型與應用": { tp: { "AI 產業": .5, "AI Agent": .8 }, kw: { "OpenAI": .5, "Anthropic": .5, "Token": .3 } },
     "半導體": { tp: { "半導體": 1 }, kw: { "台積電": .3, "NVIDIA": .3 } },
     "記憶體": { tp: { "記憶體": 1 }, kw: { "HBM": .4, "美光": .4 } },
@@ -522,7 +526,8 @@ const QUIZ = [
     "能源與電力": { kw: { "電力": 1, "能源": .8, "核能": .6, "油": .3 } },
     "Fed 與利率": { tp: { "總經與利率": .8 }, kw: { "FOMC": .6, "降息": .5, "升息": .5 } },
     "川普關稅與地緣政治": { tp: { "地緣政治": .8 }, kw: { "關稅": .6, "川普": .4 } },
-    "中國經濟": { kw: { "中國": .8, "人民幣": .5, "阿里巴巴": .4 } } } },
+    "中國經濟": { kw: { "中國": .8, "人民幣": .5, "阿里巴巴": .4 } },
+    "以上都沒有": { only: true, other: "你最想聽我們聊什麼？" } } }, // 不計分，片單由其他題決定
   { id: "want", q: "你最希望在財鯨動向看到什麼？", opts: {
     "近期市場趨勢": { fresh: .4, tp: { "台股市場": .3, "美股市場": .3 } },
     "投資心態": { fresh: .03, tp: { "操作策略": .8, "槓桿與風險": .8 }, txt: { "心態": .8, "長期": .3 } },
@@ -530,7 +535,19 @@ const QUIZ = [
     "趨勢判定": { fresh: .15, txt: { "劇本": 1.2, "推演": 1, "情境": .8 }, tp: { "總經與利率": .3 } } } },
   { id: "member", q: "你是財鯨動向的 YouTube 會員嗎？", opts: { "是": {}, "不是": {} } },
 ];
-let QZ = null; // { step, ans, src, list, unlocked }
+let QZ = null; // { step, ans, src, list, unlocked, order, other }
+// 選項順序：shuffle 的題目每次測驗隨機排（避免排前面的比較常被選），only 選項固定放最後
+function quizOrder() {
+  const o = {};
+  for (const Q of QUIZ) {
+    const keys = Object.keys(Q.opts);
+    if (!Q.shuffle) { o[Q.id] = keys; continue; }
+    const mix = keys.filter(k => !Q.opts[k].only);
+    for (let i = mix.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [mix[i], mix[j]] = [mix[j], mix[i]]; }
+    o[Q.id] = [...mix, ...keys.filter(k => Q.opts[k].only)];
+  }
+  return o;
+}
 
 function quizWeights(ans) {
   const W2 = { tp: {}, kw: {}, txt: {}, fresh: .2 };
@@ -578,7 +595,7 @@ function quizPlaylist(ans) {
 }
 
 function openQuiz(src) {
-  QZ = { step: -1, ans: {}, src: src || "直接連結", list: null, unlocked: false };
+  QZ = { step: -1, ans: {}, src: src || "直接連結", list: null, unlocked: false, order: quizOrder(), other: "" };
   track("quiz_open", { click_source: QZ.src });
   document.body.style.overflow = "hidden";
   renderQuiz();
@@ -589,7 +606,7 @@ function closeQuiz() {
   if (location.hash === "#/quiz") history.replaceState(null, "", "#/");
 }
 function quizPick(i) {
-  const Q = QUIZ[QZ.step], key = Object.keys(Q.opts)[i];
+  const Q = QUIZ[QZ.step], key = QZ.order[Q.id][i];
   if (!Q.multi) { QZ.ans[Q.id] = key; return quizNext(); }
   let sel = QZ.ans[Q.id] || [];
   if (Q.opts[key].only) sel = sel.includes(key) ? [] : [key];
@@ -599,6 +616,7 @@ function quizPick(i) {
     else if (sel.length < Q.multi) sel = [...sel, key];
   }
   QZ.ans[Q.id] = sel; renderQuiz();
+  if (Q.opts[key].other && sel.includes(key)) $(".qz-other")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 function quizNext() {
   if (QZ.step === -1) track("quiz_start", { click_source: QZ.src });
@@ -617,7 +635,10 @@ function quizNext() {
 function quizBack() { QZ.step--; renderQuiz(); }
 function quizAnswers() {
   const o = {};
-  for (const Q of QUIZ) o["quiz_" + Q.id] = [].concat(QZ.ans[Q.id] || []).join("、");
+  for (const Q of QUIZ) {
+    const sel = [].concat(QZ.ans[Q.id] || []), other = (QZ.other || "").trim().slice(0, 100);
+    o["quiz_" + Q.id] = sel.map(k => Q.opts[k].other && other ? `${k}（想聽：${other}）` : k).join("、");
+  }
   return o;
 }
 // 記到 Google Sheet（Apps Script）；失敗不影響使用者
@@ -647,17 +668,19 @@ async function quizEmail(form) {
 }
 function renderQuiz() {
   if (!QZ) return;
-  const total = QUIZ.length, s = QZ.step;
+  const total = QUIZ.length, s = QZ.step, keepY = $(".qz") ? $(".qz").scrollTop : null;
   let head = "", body = "";
   if (s === -1) {
     body = `<div class="qz-intro"><div class="big">🎯</div><h2>想要財鯨動向幫你打造專屬直播片單嗎？</h2>
       <p>回答 ${total} 個小問題，我們從 ${D.videos.length} 支直播裡，挑出最適合你的 6 支。</p>
       <button class="qz-btn" onclick="quizNext()">開始測驗</button></div>`;
   } else if (s < total) {
-    const Q = QUIZ[s], keys = Object.keys(Q.opts), sel = [].concat(QZ.ans[Q.id] || []);
+    const Q = QUIZ[s], keys = QZ.order[Q.id], sel = [].concat(QZ.ans[Q.id] || []);
+    const ask = sel.map(k => Q.opts[k].other).find(Boolean);
     head = `<div class="qz-step">第 ${s + 1} 題 / 共 ${total} 題</div><div class="qz-bar"><i style="width:${(s + 1) / total * 100}%"></i></div>`;
     body = `<h2>${esc(Q.q)}</h2>${Q.hint ? `<p class="hint">${esc(Q.hint)}</p>` : `<p class="hint">選一個最接近的</p>`}
       <div class="qz-opts ${keys.length > 5 ? "two" : ""}">${keys.map((k, i) => `<button class="qz-opt ${sel.includes(k) ? "on" : ""}" onclick="quizPick(${i})">${esc(k)}</button>`).join("")}</div>
+      ${ask ? `<label class="qz-other"><span>${esc(ask)}<small>（可以不填）</small></span><input maxlength="100" placeholder="例如：房地產、退休規劃、保險" value="${esc(QZ.other)}" oninput="QZ.other=this.value"></label>` : ""}
       <div class="qz-nav"><button class="qz-link" onclick="${s ? "quizBack()" : "QZ.step=-1;renderQuiz()"}">← 上一題</button>
       ${Q.multi ? `<button class="qz-btn" onclick="quizNext()" ${sel.length ? "" : "disabled"}>下一題</button>` : ""}</div>`;
   } else {
@@ -679,7 +702,9 @@ function renderQuiz() {
   $("#quiz").innerHTML = `<div class="qz-back" onclick="if(event.target===this)closeQuiz()"><div class="qz" role="dialog" aria-modal="true" aria-label="專屬片單測驗">
     <button class="qz-x" onclick="closeQuiz()" aria-label="關閉">×</button>
     ${head ? `<div class="qz-head">${head}</div>` : `<div style="height:36px"></div>`}<div class="qz-body">${body}</div></div></div>`;
-  $(".qz").scrollTop = 0;
+  // 換題才捲回頂端；同一題內點選項保留位置（才看得到「以上都沒有」下方的輸入框）
+  if (QZ.lastStep === s && keepY != null) $(".qz").scrollTop = keepY; else $(".qz").scrollTop = 0;
+  QZ.lastStep = s;
 }
 // 點測驗結果裡的影片：記一筆 quiz_video_click，並關掉視窗去影片頁
 document.addEventListener("click", e => {
