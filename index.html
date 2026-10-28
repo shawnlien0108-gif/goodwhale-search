@@ -160,6 +160,8 @@ footer{background:var(--brand);color:var(--brand-ink);margin-top:56px;padding:32
 .qz-other span{display:block;margin-bottom:6px;font-weight:500}
 .qz-other small{color:var(--muted);font-weight:400;margin-left:4px}
 .qz-other input{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:15px;background:var(--surface);color:var(--text)}
+.backlist{display:inline-block;margin-top:16px;color:var(--accent);text-decoration:none;font-size:14px;font-weight:500}
+.backlist + .watch{margin-top:10px}
 .qz-foot{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;margin-top:16px}
 @media (max-width:560px){.qz-back{padding:0;align-items:flex-end}.qz{max-height:92vh;border-radius:16px 16px 0 0}.qz-opts.two{grid-template-columns:1fr}.qz-mail form{flex-direction:column}.quiz-fab{right:12px;bottom:12px}}
 </style>
@@ -178,7 +180,7 @@ gtag("config", "G-XSLYCYYWWG", { send_page_view: false });
   <form class="searchbox" onsubmit="return go(this)"><input name="q" type="search" placeholder="搜尋主題、個股、關鍵字" aria-label="搜尋"><button>搜尋</button></form>
 </div></header>
 <main id="app"><div class="loading">載入中…</div></main>
-<button class="quiz-fab" type="button" onclick="openQuiz('右下角按鈕')">🎯 專屬片單</button>
+<button class="quiz-fab" type="button" onclick="quizEntry('右下角按鈕')">🎯 專屬片單</button>
 <div id="quiz"></div>
 <footer><div class="wrap">
   <div class="fgrid">
@@ -291,6 +293,7 @@ async function init() {
   for (const k in df) IDF[k] = Math.log(1 + n / df[k]);
   $("#updated").textContent = `資料更新：${D.updated}・每週四晚上 8 點直播・本站內容僅供參考，不構成投資建議・本站使用 Google Analytics 統計瀏覽情形`;
   window.addEventListener("hashchange", route);
+  fabLabel();
   route();
 }
 
@@ -375,7 +378,7 @@ function home() {
   let html = `<div class="hero"><div class="wrap">
     <h1>想找哪一集？</h1><p>輸入主題、個股或關鍵字，找出財鯨動向直播講過的內容</p>
     <form class="searchbox" onsubmit="return go(this)"><input name="q" type="search" placeholder="例如：台積電、CPO、美債、資產配置" aria-label="搜尋"><button>搜尋</button></form>
-    <button class="quiz-cta" type="button" onclick="openQuiz('首頁橫幅')">🎯 1 分鐘測驗，拿你的專屬直播片單</button>
+    <button class="quiz-cta" type="button" onclick="quizEntry('首頁橫幅')">🎯 1 分鐘測驗，拿你的專屬直播片單</button>
     <div class="chips">${topKeywords(12).map(k => `<a class="chip" href="#/search?q=${encodeURIComponent(k)}">${esc(k)}</a>`).join("")}</div>
   </div></div><div class="wrap">
   <section><div class="sec-head"><h2>最新直播</h2><a href="#/search?sort=new">看全部 →</a></div><div class="grid">${latest.map(v => card(v)).join("")}</div></section>`;
@@ -460,7 +463,8 @@ function watch(id) {
   const tags = v.topics.map(t => `<a class="tag" href="#/search?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join("")
     + v.keywords.slice(0, 18).map(t => `<a class="tag kw" href="#/search?q=${encodeURIComponent(t)}">${esc(t)}</a>`).join("");
   const rel = related(v, 8);
-  $("#app").innerHTML = `<div class="wrap"><div class="watch"><div>
+  const inList = (loadResult() || []).some(r => r.v.id === v.id);
+  $("#app").innerHTML = `<div class="wrap">${inList ? `<a class="backlist" href="#/my-list">← 回到我的專屬片單</a>` : ""}<div class="watch"><div>
     ${v.member
       // 會員影片無法在網頁內嵌播放，改放封面＋前往 YouTube 的按鈕
       ? `<div class="player mplayer"><img src="https://i.ytimg.com/vi/${v.id}/hqdefault.jpg" alt=""><div class="mplay"><a class="go" href="${yt}" target="_blank" rel="noopener" data-src="播放區">▶ 前往 YouTube 觀看</a><small>會員限定直播，會員請到 YouTube 觀看</small>${v.mighty ? `<a class="go alt" href="${esc(v.mighty)}" target="_blank" rel="noopener" data-src="播放區">Mighty 會員看回放</a>` : ""}</div></div>`
@@ -594,6 +598,41 @@ function quizPlaylist(ans) {
   return out.sort((a, b) => a.v.member - b.v.member);
 }
 
+/* 記住測驗結果（存在觀眾自己的瀏覽器）：點影片後按上一頁、或之後再回來，片單都還在 */
+const SAVE_KEY = "gw_quiz_result";
+let SAVED = null;
+function saveResult() {
+  if (!QZ || !QZ.list) return;
+  SAVED = { ans: QZ.ans, other: QZ.other, src: QZ.src, id: QZ.id, unlocked: QZ.unlocked, sent: !!QZ.sent,
+    items: QZ.list.map(r => ({ id: r.v.id, why: r.why })), ts: Date.now() };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(SAVED)); } catch (e) {}
+  fabLabel();
+}
+function loadResult() {
+  if (!SAVED) try { SAVED = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch (e) {}
+  if (!SAVED || !SAVED.items) return null;
+  const list = SAVED.items.filter(x => BYID[x.id]).map(x => ({ v: BYID[x.id], why: x.why || [] }));
+  return list.length ? list : null;
+}
+function fabLabel() { const b = $(".quiz-fab"); if (b) b.textContent = loadResult() ? "🎯 我的片單" : "🎯 專屬片單"; }
+function showSaved(src) {
+  const list = loadResult();
+  if (!list) return openQuiz(src);
+  QZ = { ...SAVED, list, step: QUIZ.length, order: quizOrder(), restored: true };
+  track("quiz_open", { click_source: src, restored: "是" });
+  document.body.style.overflow = "hidden";
+  toListHash();
+  renderQuiz();
+}
+// 片單打開時網址改成 #/my-list；從首頁／測驗連結來的直接取代，從其他頁來的另開一筆歷史（關掉時退回原頁）
+function toListHash() {
+  const h = location.hash;
+  if (h.startsWith("#/my-list")) return;
+  if (!h || h === "#/" || h.startsWith("#/quiz")) history.replaceState(null, "", "#/my-list");
+  else { history.pushState(null, "", "#/my-list"); QZ.pushed = true; }
+}
+// 入口按鈕：做過測驗就直接打開上次的片單（裡面有「重新測驗」）
+function quizEntry(src) { loadResult() ? showSaved(src) : openQuiz(src); }
 function openQuiz(src) {
   QZ = { step: -1, ans: {}, src: src || "直接連結", list: null, unlocked: false, order: quizOrder(), other: "" };
   track("quiz_open", { click_source: QZ.src });
@@ -602,8 +641,10 @@ function openQuiz(src) {
 }
 function closeQuiz() {
   if (QZ && !QZ.list) track("quiz_close", { step: QZ.step + 1 });
+  const pushed = QZ && QZ.pushed;
   QZ = null; $("#quiz").innerHTML = ""; document.body.style.overflow = "";
-  if (location.hash === "#/quiz") history.replaceState(null, "", "#/");
+  if (pushed && location.hash.startsWith("#/my-list")) history.back();
+  else if (location.hash.startsWith("#/quiz") || location.hash.startsWith("#/my-list")) history.replaceState(null, "", "#/");
 }
 function quizPick(i) {
   const Q = QUIZ[QZ.step], key = QZ.order[Q.id][i];
@@ -629,6 +670,9 @@ function quizNext() {
     track("quiz_complete", p);
     QZ.id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     toSheet({ type: "complete", id: QZ.id, source: QZ.src, ...quizAnswers(), playlist: QZ.list.map(r => r.v.date + " " + (r.v.member ? "會員" : "公開")).join("、"), playlist_ids: QZ.list.map(r => r.v.id).join(",") });
+    saveResult();
+    // 結果頁的網址換成 #/my-list：看完影片按上一頁會回到這裡
+    toListHash();
   }
   renderQuiz();
 }
@@ -663,7 +707,7 @@ async function quizEmail(form) {
   }
   toSheet({ type: "email", id: QZ.id, email: QUIZ_CFG.SHEET_SAVE_EMAIL ? email : "" });
   track("quiz_email_submit", { click_source: QZ.src, connected: QUIZ_CFG.MAILERLITE_URL ? "是" : "否（預覽版）" });
-  QZ.unlocked = true; QZ.sent = true; renderQuiz();
+  QZ.unlocked = true; QZ.sent = true; saveResult(); renderQuiz();
   return false;
 }
 function renderQuiz() {
@@ -713,6 +757,7 @@ document.addEventListener("click", e => {
   const id = a.getAttribute("href").slice(8), i = QZ.list.findIndex(r => r.v.id === id);
   track("quiz_video_click", { video_id: id, position: i + 1, video_type: BYID[id]?.member ? "會員" : "公開" });
   nextSource = "專屬片單";
+  saveResult();
   QZ = null; $("#quiz").innerHTML = ""; document.body.style.overflow = "";
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && QZ) closeQuiz(); });
@@ -721,6 +766,8 @@ function route() {
   const h = location.hash.slice(1) || "/";
   const [path, qs] = h.split("?");
   if (path === "/quiz") { home(); if (!QZ) openQuiz(new URLSearchParams(qs || "").get("src") || "直接連結"); return; }
+  if (path === "/my-list") { home(); if (!QZ) showSaved("回到片單"); return; }
+  if (QZ && !path.startsWith("/watch/")) { QZ = null; $("#quiz").innerHTML = ""; document.body.style.overflow = ""; }
   if (path.startsWith("/watch/")) watch(decodeURIComponent(path.slice(7)));
   else if (path === "/search") results(new URLSearchParams(qs || ""));
   else home();
