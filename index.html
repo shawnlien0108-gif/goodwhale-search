@@ -213,7 +213,8 @@ let curPage = "home", nextSource = "", lastSearch = null;
 function trackPage(type, path, title) {
   curPage = type;
   const base = location.origin + location.pathname.replace(/\/$/, "");
-  track("page_view", { page_location: base + path, page_title: title, page_type: type });
+  // 保留網址參數（utm_source、utm_medium、utm_campaign…），GA4 才認得流量來源
+  track("page_view", { page_location: base + path + location.search, page_title: title, page_type: type });
 }
 // 點擊追蹤：標籤、主軸、熱門關鍵字、影片卡片、行動呼籲按鈕
 document.addEventListener("click", e => {
@@ -762,10 +763,17 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && QZ) closeQuiz(); });
 
+// 測驗入口：優先用 #/quiz?src=…；沒有的話用網址的 UTM（例如 Facebook-1028_tsmc）
+function quizSrc(qs) {
+  const src = new URLSearchParams(qs || "").get("src");
+  if (src) return src;
+  const u = new URLSearchParams(location.search);
+  return [u.get("utm_source"), u.get("utm_medium"), u.get("utm_campaign")].filter(Boolean).join("-") || "直接連結";
+}
 function route() {
   const h = location.hash.slice(1) || "/";
   const [path, qs] = h.split("?");
-  if (path === "/quiz") { home(); if (!QZ) openQuiz(new URLSearchParams(qs || "").get("src") || "直接連結"); return; }
+  if (path === "/quiz") { home(); if (!QZ) openQuiz(quizSrc(qs)); return; }
   if (path === "/my-list") { home(); if (!QZ) showSaved("回到片單"); return; }
   if (QZ && !path.startsWith("/watch/")) { QZ = null; $("#quiz").innerHTML = ""; document.body.style.overflow = ""; }
   if (path.startsWith("/watch/")) watch(decodeURIComponent(path.slice(7)));
